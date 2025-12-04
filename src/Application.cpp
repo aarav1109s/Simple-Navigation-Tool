@@ -6,100 +6,215 @@
 #include <bobcat_ui/dropdown.h>
 #include <bobcat_ui/textbox.h>
 #include <bobcat_ui/window.h>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
 #include <string>
 
 using namespace bobcat;
 using namespace std;
 
+//
+// ─── CONSTRUCTOR ───────────────────────────────────────────────
+//
 Application::Application() {
-    // App's constructor
-    initData();
-    initInterface();
+    initData();       // load CSVs
+    initInterface();  // build UI
 }
 
-void Application::handleClick(bobcat::Widget *sender) {
-
-    results->clear();
-    window->redraw();
-
-    int startIndex = start->value();
-    int destIndex = dest->value();
-
-    Waypoint *path = g.ucs(cities[startIndex], cities[destIndex]);
-
-    system("clear");
-
-    if (path) {
-        cout << "We found a path" << endl;
-        Waypoint *temp = path;
-        int y = results->y() + 10;
-        while (temp != nullptr) {
-            results->add(new TextBox(40, y, 300, 25, temp->vertex->data));
-            y += 40;
-            if (temp->parent != nullptr) {
-                results->add(new TextBox(
-                    40, y, 300, 25,
-                    "    Flight time: " + to_string(temp->weight) + " hours"));
-                y += 40;
-            }
-            cout << temp->vertex->data << " " << temp->partialCost << endl;
-            temp = temp->parent;
-
-            window->redraw();
-        }
-    } else {
-        cout << "There is no path" << endl;
+//
+// ─── LOAD VERTICES FROM vertices.csv ───────────────────────────
+//
+void Application::loadAirports(const std::string &filename) {
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Error: Cannot open " << filename << endl;
+        return;
     }
+
+    string line;
+    while (getline(file, line)) {
+        if (line.size() == 0) continue;
+        Vertex *v = new Vertex(line);
+        cities.append(v);
+        g.addVertex(v);
+    }
+
+    file.close();
 }
 
+//
+// ─── LOAD EDGES FROM edges.csv ─────────────────────────────────
+//   Format: FROM_INDEX,TO_INDEX,PRICE,TIME
+//
+void Application::loadEdges(const std::string &filename) {
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Error: Cannot open " << filename << endl;
+        return;
+    }
+
+    string line;
+    while (getline(file, line)) {
+        if (line.size() == 0) continue;
+
+        stringstream ss(line);
+        string a, b, c, d;
+
+        getline(ss, a, ',');
+        getline(ss, b, ',');
+        getline(ss, c, ',');
+        getline(ss, d, ',');
+
+        int from = stoi(a);
+        int to   = stoi(b);
+        int price = stoi(c);
+        int time  = stoi(d);
+
+        g.addEdge(cities[from], cities[to], price, time);
+    }
+
+    file.close();
+}
+
+//
+// ─── INIT DATA ───────────────────────────────────────────────
+//   Loads from CSV instead of hardcoding
+//
 void Application::initData() {
-    cities.append(new Vertex("San Francisco"));  // 0
-    cities.append(new Vertex("New York"));       // 1
-    cities.append(new Vertex("Rio De Janeiro")); // 2
-    cities.append(new Vertex("Paris"));          // 3
-    cities.append(new Vertex("Johannesburg"));   // 4
-    cities.append(new Vertex("Moscow"));         // 5
-    cities.append(new Vertex("Sydney"));         // 6
-    cities.append(new Vertex("Tokyo"));          // 7
-    cities.append(new Vertex("Beijing"));        // 8
-
-    for (int i = 0; i < cities.size(); i++) {
-        g.addVertex(cities[i]);
-    }
-
-    g.addEdge(cities[0], cities[1], 6);
-    g.addEdge(cities[1], cities[2], 13);
-    g.addEdge(cities[1], cities[3], 7);
-    g.addEdge(cities[1], cities[4], 14);
-    g.addEdge(cities[1], cities[5], 15);
-    g.addEdge(cities[1], cities[6], 40);
-    g.addEdge(cities[2], cities[3], 11);
-    g.addEdge(cities[2], cities[8], 18);
-    g.addEdge(cities[3], cities[6], 17);
-    g.addEdge(cities[4], cities[7], 16);
-    g.addEdge(cities[4], cities[6], 11);
-    g.addEdge(cities[6], cities[7], 10);
-    g.addEdge(cities[6], cities[8], 3);
-    g.addEdge(cities[8], cities[5], 8);
+    loadAirports("assets/vertices.csv");
+    loadEdges("assets/edges.csv");
 }
 
+//
+// ─── INIT USER INTERFACE ─────────────────────────────────────
+//
 void Application::initInterface() {
-    window = new Window(100, 100, 400, 400, "Flight Planner");
+    window = new Window(100, 100, 420, 500, "Flight Planner");
 
-    start = new Dropdown(20, 40, 360, 25, "Starting Point");
-    dest = new Dropdown(20, 100, 360, 25, "Destination");
+    // dropdowns
+    start = new Dropdown(20, 40, 360, 25, "Starting Airport");
+    dest  = new Dropdown(20, 90, 360, 25, "Destination Airport");
 
     for (int i = 0; i < cities.size(); i++) {
         start->add(cities[i]->data);
         dest->add(cities[i]->data);
     }
 
-    search = new Button(20, 150, 360, 25, "Search");
+    // mode dropdown
+    mode = new Dropdown(20, 140, 360, 25, "Search Type");
+    mode->add("Cheapest Price");
+    mode->add("Shortest Time");
+    mode->add("Fewest Stops");
+
+    search = new Button(20, 190, 360, 30, "Search");
     ON_CLICK(search, Application::handleClick);
 
-    results = new Fl_Scroll(20, 200, 360, 180, "Results");
+    results = new Fl_Scroll(20, 240, 360, 230, "Results");
     results->align(FL_ALIGN_TOP_LEFT);
     results->box(FL_THIN_UP_BOX);
 
     window->show();
+}
+
+//
+// ─── HANDLE SEARCH BUTTON CLICK ─────────────────────────────
+//
+void Application::handleClick(bobcat::Widget *sender) {
+    results->clear();
+    window->redraw();
+
+    int startIndex = start->value();
+    int destIndex  = dest->value();
+    int modeIndex  = mode->value();  // 0=price,1=time,2=stops
+
+    Vertex *s = cities[startIndex];
+    Vertex *d = cities[destIndex];
+
+    Waypoint *path = nullptr;
+
+    if (modeIndex == 0) {                       // cheapest
+        path = g.ucs(s, d, USE_PRICE);
+    }
+    else if (modeIndex == 1) {                  // fastest
+        path = g.ucs(s, d, USE_TIME);
+    }
+    else {                                      // fewest stops
+        path = g.bfs(s, d);
+    }
+
+    system("clear");
+
+    if (!path) {
+        results->add(new TextBox(30, 260, 320, 30, "No route found."));
+        window->redraw();
+        return;
+    }
+
+    // Collect the path
+    vector<Waypoint*> reversePath;
+    Waypoint *temp = path;
+    while (temp != nullptr) {
+        reversePath.push_back(temp);
+        temp = temp->parent;
+    }
+
+    // reverse so path is start → end
+    std::reverse(reversePath.begin(), reversePath.end());
+
+    // Display route
+    int y = results->y() + 10;
+
+    for (int i = 0; i < reversePath.size(); i++) {
+        Waypoint *wp = reversePath[i];
+
+        results->add(new TextBox(40, y, 300, 25, wp->vertex->data));
+        y += 30;
+
+        if (wp->parent != nullptr) {
+
+
+            // Show time in hours (B option)
+            int hours = wp->edgeCost / 60;
+
+            string info;
+            if (modeIndex == 0) {
+                info = "Price: $" + to_string(wp->edgeCost);
+            }
+            else if (modeIndex == 1) {
+                info = "Time: " + to_string(hours) + " hours";
+            }
+            else {
+                info = "Stop " + to_string(i);
+            }
+
+            results->add(new TextBox(60, y, 280, 25, info));
+            y += 30;
+        }
+    }
+
+    // Summary section
+    y += 10;
+    results->add(new TextBox(40, y, 300, 25, "======================="));
+    y += 30;
+
+    if (modeIndex == 0) {
+        results->add(new TextBox(40, y, 300, 25,
+                                 "Total Price: $" + to_string(path->partialCost)));
+        y += 30;
+    }
+    else if (modeIndex == 1) {
+        int finalHours = path->partialCost / 60;
+        results->add(new TextBox(40, y, 300, 25,
+                                 "Total Time: " + to_string(finalHours) + " hours"));
+        y += 30;
+    }
+    else {
+        int stops = reversePath.size() - 2;
+        results->add(new TextBox(40, y, 300, 25,
+                                 "Total Stops: " + to_string(stops)));
+        y += 30;
+    }
+
+    window->redraw();
 }
