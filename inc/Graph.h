@@ -13,20 +13,8 @@
 //
 // ─── EDGE STRUCT WITH PRICE + TIME ─────────────────────────────────────
 //
-
-struct Edge;
-
-struct Vertex {
-    std::string data;
-    ArrayList<Edge *> edgeList;
-
-    Vertex(std::string data) { this->data = data; }
-};
-
-inline std::ostream &operator<<(std::ostream &os, Vertex *v) {
-    os << v->data;
-    return os;
-}
+// Forward declaration of Vertex 
+struct Vertex;
 
 struct Edge {
     Vertex *from;
@@ -37,6 +25,24 @@ struct Edge {
     Edge(Vertex *from, Vertex *to, int price, int time)
         : from(from), to(to), price(price), time(time) {}
 };
+
+
+struct Vertex {
+    std::string data;
+    ArrayList<Edge *> edgeList;
+
+    Vertex(std::string data) { this->data = data; }
+    ~Vertex(){
+        for(int i = 0; i < edgeList.size(); i++){
+            delete edgeList[i];
+        }
+    }
+};
+
+inline std::ostream &operator<<(std::ostream &os, Vertex *v) {
+    os << v->data;
+    return os;
+}
 
 inline std::ostream &operator<<(std::ostream &os, Edge *e) {
     os << "(" << e->from << " -> " << e->to
@@ -101,6 +107,14 @@ inline std::ostream &operator<<(std::ostream &os, Waypoint *wp) {
 
 struct Graph {
     ArrayList<Vertex *> vertices;
+
+    // Adding graph destructor for memory clean up
+    ~Graph(){
+        for(int i = 0; i < vertices.size(); i++){
+            delete vertices[i];
+        }
+    }
+
 
     void addVertex(Vertex *v) { vertices.append(v); }
 

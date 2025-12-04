@@ -32,6 +32,7 @@ class Application : public bobcat::Application_ {
 
 public:
     Application(); // constructor
+    ~Application(); //Destructor
 };
 
 #endif

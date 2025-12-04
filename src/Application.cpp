@@ -1,3 +1,4 @@
+#include "Graph.h"
 #include <Application.h>
 #include <FL/Enumerations.H>
 #include <FL/Fl_Scroll.H>
@@ -20,6 +21,9 @@ using namespace std;
 Application::Application() {
     initData();       // load CSVs
     initInterface();  // build UI
+}
+Application::~Application(){
+    delete window;
 }
 
 //
@@ -217,4 +221,11 @@ void Application::handleClick(bobcat::Widget *sender) {
     }
 
     window->redraw();
+    // Destroy the waypoint chain once. 
+    Waypoint * t = path;
+    while(t != nullptr){
+        Waypoint* parent = t->parent;
+        delete t;
+        t = parent;
+    }
 }
