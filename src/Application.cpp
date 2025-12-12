@@ -253,21 +253,36 @@ void Application::handleClick(bobcat::Widget *sender) {
     }
 
     // Add a summary at the bottom showing the total cost/time/stops
+    // We need to calculate the actual totals by looking at the edges in the path
     y += 10;  // Add some spacing
     results->add(new TextBox(40, y, 300, 25, "======================="));
     y += 30;
 
-    // Show the total based on the search mode
-    if (modeIndex == 0) {
-        // Total price
-        results->add(new TextBox(40, y, 300, 25, "Total Price: $" + to_string(path->partialCost)));
-    } else if (modeIndex == 1) {
-        // Total time (convert minutes to hours)
-        results->add(new TextBox(40, y, 300, 25, "Total Time: " + to_string(path->partialCost/60) + " hours"));
-    } else {
-        // Total stops (subtract 2 because start and destination aren't stops)
-        results->add(new TextBox(40, y, 300, 25, "Total Stops: " + to_string((int)reversePath.size() - 2)));
+    // Calculate total price and total time by traversing the path
+    int totalPrice = 0;
+    int totalTime = 0;
+    for (int i = 0; i < reversePath.size() - 1; i++) {
+        Vertex *from = reversePath[i]->vertex;
+        Vertex *to = reversePath[i + 1]->vertex;
+        // Find the edge between these two vertices
+        for (int j = 0; j < from->edgeList.size(); j++) {
+            Edge *e = from->edgeList[j];
+            if (e->to == to) {
+                totalPrice += e->price;
+                totalTime += e->time;
+                break;
+            }
+        }
     }
+
+    // Show all three totals regardless of search mode
+    // The route was chosen based on user preference, but we show all the info
+    results->add(new TextBox(40, y, 300, 25, "Total Price: $" + to_string(totalPrice)));
+    y += 30;
+    results->add(new TextBox(40, y, 300, 25, "Total Time: " + to_string(totalTime/60) + " hours"));
+    y += 30;
+    // Total stops (subtract 2 because start and destination aren't stops)
+    results->add(new TextBox(40, y, 300, 25, "Total Stops: " + to_string((int)reversePath.size() - 2)));
 
     // Clean up memory
     // The search algorithm creates a tree of Waypoint objects, and we need to delete them
