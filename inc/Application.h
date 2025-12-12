@@ -6,6 +6,8 @@
 #include <bobcat_ui/dropdown.h>
 #include <bobcat_ui/textbox.h>
 #include <bobcat_ui/window.h>
+#include <cmath>
+
 
 #include <FL/Fl_Scroll.H>
 #include <FL/Fl_Box.H>
