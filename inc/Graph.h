@@ -212,9 +212,35 @@ struct Graph {
                     found = true;
 
                     if (child->partialCost < frontier[j]->partialCost) {
-                        delete frontier[j];
+                        // Before deleting, remove it from its parent's children list to avoid double free
+                        Waypoint* toDelete = frontier[j];
+                        if (toDelete->parent != nullptr) {
+                            // Remove from parent's children list by creating new list without this element
+                            ArrayList<Waypoint*> newChildren;
+                            for (int k = 0; k < toDelete->parent->children.size(); k++) {
+                                if (toDelete->parent->children[k] != toDelete) {
+                                    newChildren.append(toDelete->parent->children[k]);
+                                }
+                            }
+                            toDelete->parent->children = newChildren;
+                        }
+                        // Clear children list so destructor doesn't try to delete them
+                        toDelete->children = ArrayList<Waypoint*>();
+                        delete toDelete;
                         frontier[j] = child;
                     } else {
+                        // Before deleting, remove it from its parent's children list
+                        if (child->parent != nullptr) {
+                            ArrayList<Waypoint*> newChildren;
+                            for (int k = 0; k < child->parent->children.size(); k++) {
+                                if (child->parent->children[k] != child) {
+                                    newChildren.append(child->parent->children[k]);
+                                }
+                            }
+                            child->parent->children = newChildren;
+                        }
+                        // Clear children list so destructor doesn't try to delete them
+                        child->children = ArrayList<Waypoint*>();
                         delete child;  // discard worse path
                     }
                     break;
