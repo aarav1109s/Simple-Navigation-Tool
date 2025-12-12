@@ -75,6 +75,12 @@ struct Waypoint {
         edgeCost = 0;
     }
 
+    ~Waypoint() {
+        for (int i = 0; i < children.size(); i++) {
+            delete children[i];
+        }
+    }
+
     void expand() {
         for (int i = 0; i < vertex->edgeList.size(); i++) {
             Edge *e = vertex->edgeList[i];
